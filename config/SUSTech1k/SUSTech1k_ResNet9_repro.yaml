@@ -1,0 +1,55 @@
+DATA:
+  #data_name: gait_database
+  data_name: SUSTech1K
+  data_root: /home/sx-zhang/SUSTech1K/SUSTech1K-Released-voxel.norotate/tmp #voxelized data
+  data_split: SUS #dir1~4, combined, SUS
+  frame_size: 20 #10,15,_voxel (_voxel if not using temporal representation)
+  class:
+  feature: 1 #xyz, ins, depth, random, fix, (feature_size for SUSTech1K)
+  splits: ['train', '_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far', '00-nm', '01-nm', 'bg', 'cl', 'cr', 'oc', 'ub', 'uf', 'nt']
+  splits_variance: ['00-nm', '01-nm', 'bg', 'cl', 'cr', 'oc', 'ub', 'uf', 'nt']
+  splits_view: ['_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far']
+  target: #[0,1,2,3,4,5]
+  lines: 16 #[6,7,10] #number or list of lines
+  structure: Baseline #cnn, cnn+lstm1, cnn+lstm4, cnn+diff+lstm1/4, cnn+merge+lstm1, 3dcnn
+  test_split: test #test, feature, line, temporal, retemporal
+  datatype: half #double, float, half
+
+  reload_data: True
+  identifier: B_
+  with_depth: False
+  use_gpu: True
+  use_metric: True
+  #use_variation: True
+  use_Aloss: True #set to False to use metric learning only
+  free_memory_required: 1024
+  load_checkpoint: False #set to False to start a new trial
+  checkpoint_timestamp: '2024-02-02 07:21:51.009417'
+
+TRAIN:
+  ignore_label: None
+  train_gpu: [0]
+  workers: 8  # data loader workers
+  batch_size: 8 # batch size for training
+  batch_size_test: 64
+  base_lr: 0.1
+  epochs: 100
+  start_epoch: 0
+  step_epoch: 30
+  momentum: 0.9
+  weight_decay: 0.0005
+  manual_seed: 7777
+  print_freq: 1
+  save_freq: 1
+  save_path:
+  weight:  # path to initial weight (default: none)
+  resume:  # path to latest checkpoint (default: none)
+  eval_freq: 1
+  mean_range: 50
+Distributed: 
+  dist_url: tcp://localhost:8888
+  dist_backend: 'nccl'
+  multiprocessing_distributed: False
+  world_size: 1
+  rank: 0
+
