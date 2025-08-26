@@ -7,7 +7,7 @@ class Baseline(nn.Module):
     def __init__(self, args, in_size):
         super().__init__()
         self.encoder = nn.Sequential(
-                FlatIn(64),
+                FlatIn(args.feature, 64),
                 ResBlock([64,64], stride=1),
                 ResBlock([64,128]),
                 ResBlock([128,256]),

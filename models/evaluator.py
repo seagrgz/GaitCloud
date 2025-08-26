@@ -50,6 +50,11 @@ class MetricEvaluator():
         ##logger.info('inner calculated: {}'.format(self.get_gpu_info()[0]['memory.free']))
         #dist = x2 + y2 - 2 * inner
         #logger.info('dist calculated: {}'.format(self.get_gpu_info()[0]['memory.free']))
+
+        #dist = []
+        #for i in range(len(x)//16):
+        #    dist.append(torch.sum(x[i*16:(i+1)*16] ** 2, -1).unsqueeze(2) + torch.sum(y[i*16:(i+1)*16] ** 2, -1).unsqueeze(1) - 2 * x[i*16:(i+1)*16].matmul(y[i*16:(i+1)*16].transpose(1, 2)))
+        #dist = torch.cat(dist)
         dist = torch.sum(x ** 2, -1).unsqueeze(2) + torch.sum(y ** 2, -1).unsqueeze(1) - 2 * x.matmul(y.transpose(1, 2))
         dist = torch.sqrt(F.relu(dist.detach()))  # [p, n_x, n_y]
         return dist

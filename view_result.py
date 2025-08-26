@@ -1,16 +1,15 @@
 #!/usr/bin/env python
 import numpy as np
 import seaborn as sn
-import pandas as pd
 import argparse
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser(description='Specify the dir name to view.')
-parser.add_argument('-t', type=str)
+parser.add_argument('-t', help='Time stamp [**]', type=str)
 data_name = parser.parse_args().t
 variance = ['00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
-#variance = ['00-nm', '01-nm', '01-bg', '01-cl', '01-cr', '01-oc', '01-ub', 'uf', 'nt']
-view = ['_000_', '000-far', '_045_', '_090_', '090-near', '_135_', '_180_', '180-far', '_225_', '_270_', '270-far', '_315_']
+#variance = ['test'] #for FreeGait
+view = ['000', '000-far', '045', '090', '090-near', '135', '180', '180-far', '225', '270', '270-far', '315']
 view_labels = ['000°', '045°', '090°', '135°', '180°', '225°', '270°', '315°', '*000°', '*090°', '*180°', '*270°']
 
 mean_matrix_view = []
@@ -19,12 +18,6 @@ max_matrix_view = []
 result = np.load('{}/final.npy'.format(data_name), allow_pickle=True)
 accuracy_val = result[0]
 accuracy_train = result[1]
-#if len(result) > 2:
-#    losses = result[2]
-#    np.save('/home/sx-zhang/{}_loss.npy'.format(data_name), losses)
-#    if len(result) > 3:
-#        failed_record = result[3]
-#        failed_start = failed_record[0]
 
 best_train = max(accuracy_train)
 best_train_pos = accuracy_train.index(best_train)
@@ -33,11 +26,9 @@ print(round(best_train, 4))
 keys = accuracy_val.keys()
 var_keys = [name for name in keys if name in variance]
 view_keys = [name for name in keys if name in view]
-#print(keys)
-#print(var_keys)
-#print(view_keys)
 best_val = {}
 best_val_pos = {}
+accuracy_train = accuracy_train[-len(next(iter(accuracy_val.values()))):]
 #variance
 if len(var_keys) != 0:
     print('Variance evaluation results')
@@ -50,12 +41,12 @@ if len(var_keys) != 0:
     print(best_val)
     for var in var_keys:
         print('accuracy at {} best:'.format(var))
-        print('Epoch:', best_val_pos[var], 'train:', round(accuracy_train[best_val_pos[var]], 4), end = ' ')
+        print('Epoch:', best_val_pos[var]+90, 'train:', round(accuracy_train[best_val_pos[var]], 4), end = ' ')
         for attr in var_keys:
             print(attr, ':', round(accuracy_val[attr][best_val_pos[var]], 4), end = ' ')
         print()
     print('best mean accuracy in test')
-    print('Epoch:', best_mean_pos, 'train:', round(accuracy_train[best_mean_pos], 4), end = ' ')
+    print('Epoch:', best_mean_pos+90, 'train:', round(accuracy_train[best_mean_pos], 4), end = ' ')
     for attr in var_keys:
         print(attr, ':', round(accuracy_val[attr][best_mean_pos], 4), end = ' ')
     print('\n ')
@@ -75,11 +66,6 @@ if len(view_keys) != 0:
 
         sum_total_val = [sum(x) for x in zip(*(sum_val[name] for name in view_keys))]
         best_mean_pos = sum_total_val.index(max(sum_total_val))
-        if 'overall' in keys:
-            if len(accuracy_val['overall']) == 2:
-                print('Epoch: {}/{}, overall: {}'.format(best_mean_pos, accuracy_val['overall'][1], round(accuracy_val['overall'][0], 4)*100))
-            elif len(accuracy_val['overall']) > 2:
-                print('Epoch: {}, overall: {}'.format(best_mean_pos, round(accuracy_val['overall'][best_mean_pos], 4)))
         mean_matrix_view = []
         for gallery in view_keys:
             best_mean = []
@@ -138,21 +124,27 @@ if len(view_keys) != 0:
         masked = mean_matrix_view.copy()
         np.fill_diagonal(masked, 0)
         overall = masked.sum()/(masked.shape[0]*(masked.shape[1]-1))
-        vmin = 50 #min(mean_matrix_view.min(), max_matrix_view.min())
+        vmin = 74 #min(mean_matrix_view.min(), max_matrix_view.min())
         vmax = 100 #max(mean_matrix_view.max(), max_matrix_view.max())
-        fig, axes = plt.subplots(1, 2, figsize=(12, 5), dpi=300)
-        sn.heatmap(mean_matrix_view, annot=True, fmt='d', cmap='viridis', ax=axes[0], vmin=vmin, vmax=vmax, xticklabels=view_labels, yticklabels=view_labels)
-        axes[0].set_title('Uniformed best accuracy ({})'.format(round(overall, 2)))
-        axes[0].set_xlabel('probe')
-        axes[0].set_ylabel('gallery')
-        axes[0].tick_params(axis='x', rotation=45)
-        sn.heatmap(max_matrix_view, annot=True, fmt='d', cmap='viridis', ax=axes[1], vmin=vmin, vmax=vmax, xticklabels=view_labels, yticklabels=view_labels)
-        axes[1].set_title('Independent best accuracy')
-        axes[1].set_xlabel('probe')
-        axes[1].set_ylabel('gallery')
-        axes[1].tick_params(axis='x', rotation=45)
+        fig, ax = plt.subplots(1, 1, figsize=(6, 5), dpi=300)
+        sn.heatmap(mean_matrix_view, annot=True, fmt='d', cmap='viridis', vmin=vmin, vmax=vmax, xticklabels=view_labels, yticklabels=view_labels)
+        ax.set_title('Uniformed best accuracy ({})'.format(round(overall, 2)))
+        ax.set_xlabel('probe')
+        ax.set_ylabel('gallery')
+        ax.tick_params(axis='x', rotation=45)
+        #fig, axes = plt.subplots(1, 1, figsize=(12, 5), dpi=300)
+        #sn.heatmap(mean_matrix_view, annot=True, fmt='d', cmap='viridis', ax=axes[0], vmin=vmin, vmax=vmax, xticklabels=view_labels, yticklabels=view_labels)
+        #axes[0].set_title('Uniformed best accuracy ({})'.format(round(overall, 2)))
+        #axes[0].set_xlabel('probe')
+        #axes[0].set_ylabel('gallery')
+        #axes[0].tick_params(axis='x', rotation=45)
+        #sn.heatmap(max_matrix_view, annot=True, fmt='d', cmap='viridis', ax=axes[1], vmin=vmin, vmax=vmax, xticklabels=view_labels, yticklabels=view_labels)
+        #axes[1].set_title('Independent best accuracy')
+        #axes[1].set_xlabel('probe')
+        #axes[1].set_ylabel('gallery')
+        #axes[1].tick_params(axis='x', rotation=45)
         plt.tight_layout()
-        plt.savefig('{}view matices.png'.format(data_name))
+        plt.savefig('{}view_matrix.png'.format(data_name))
         plt.close()
 
         fig, ax = plt.subplots(figsize=(6,5), dpi=300)

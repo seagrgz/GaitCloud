@@ -8,7 +8,7 @@ from models.module import ResNet9_3D, HPP, SeparateFCs, SeparateBNNecks, LossAgg
 import numpy as np
 
 class LidarGait3D(nn.Module):
-    def __init__(self, args, in_size):
+    def __init__(self, args):
         super().__init__()
         self.feat_buff = []
         self.sample_L = args.frame_size
@@ -20,7 +20,7 @@ class LidarGait3D(nn.Module):
         self.BNNecks = SeparateBNNecks(class_num=len(args.target))
         self.mergeloss = LossAggregator(margin=0.2, scale=1, lamda=1)
 
-    def forward(self, x, label=None, training=True, **kwargs):
+    def forward(self, x, label=None, training=False, **kwargs):
         '''
         input   : [n, t, h, w, l]
         output  : embedding[n, c, p]

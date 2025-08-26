@@ -16,6 +16,7 @@ mkdir -p ${exp_dir}
 cp tool/train.sh tool/${TRAIN_CODE} ${config} ${exp_dir}
 
 now=$(date +"%Y%m%d_%H%M%S")
+#CUDA_LAUNCH_BLOCKING=1 
 $PYTHON ${exp_dir}/${TRAIN_CODE} \
   --config=${config} \
   2>&1 | tee ${exp_dir}/train-$now.log

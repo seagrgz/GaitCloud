@@ -1,16 +1,23 @@
 DATA:
   data_name: SUSTech1K
-  data_root: dataset/SUSTech1K/SUSTech1K-voxel.20tempspat20centcomp/tmp
-  frame_size: 20
+  data_root: dataset/SUSTech1K/SUSTech1K-voxel.20rotatedepthimage/tmp
+  frame_size: #not used with SUSTech1K
   feature: 1 #feature_size
   splits_variance: ['00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
   splits_view: ['000', '045', '090', '135', '180', '225', '270', '315', '000-far', '090-near', '180-far', '270-far']
   target:
-  structure: Gaitcloud
+  lines:
+  structure: Gaitcloud2D
   datatype: half #bf16
 
   reload_data: True
-  identifier: G_ #data prefix for parallel training
+  identifier: G_ #prefix for parallel training
+  use_gpu: True
+  use_metric: True
+  use_Aloss: True #set to False to use metric learning only
+  free_memory_required: 1024
+  load_checkpoint: False #set to False to start a new trial
+  checkpoint_timestamp: '2024-02-02 07:21:51.009417'
 
   visual: False
   visual_freq: 20
@@ -20,9 +27,6 @@ DATA:
         }
 
 TRAIN:
-  use_gpu: True
-  use_metric: True
-  use_Aloss: True #set to False to use metric learning only
   ignore_label: None
   train_gpu: [0]
   workers: 8  # data loader workers
@@ -35,11 +39,11 @@ TRAIN:
   momentum: 0.9
   weight_decay: 0.0005
   manual_seed: 7777
-  
-  free_memory_required: 1024
-  save_checkpoint: True
-  check_freq: 10
-  load_checkpoint: False #set to False to start a new trial
-  checkpoint_timestamp: '2024-02-02 07:21:51.009417'
+  print_freq: 1
+  save_freq: 1
+  save_path:
+  weight:  # path to initial weight (default: none)
+  resume:  # path to latest checkpoint (default: none)
   train_eval: False
-  eval_start: 1.0
+  eval_freq: 1
+  eval_start: 0.9

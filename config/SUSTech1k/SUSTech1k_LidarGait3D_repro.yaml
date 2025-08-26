@@ -2,10 +2,8 @@ DATA:
   data_name: SUSTech1K
   data_root: dataset/SUSTech1K/SUSTech1K-Released-voxel.10temporal/tmp
   data_split: SUS
-  frame_size: #not used with SUSTech1K
-  class:
+  frame_size: 20 #not used with SUSTech1K
   feature: 1 #feature_size
-  splits: ['train', '_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far', '00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
   splits_variance: ['00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
   splits_view: ['_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far']
   target:
@@ -15,7 +13,6 @@ DATA:
 
   reload_data: True
   identifier: T_ #prefix for parallel training
-  with_depth: False
   use_gpu: True
   use_metric: True
   use_Aloss: True #set to False to use metric learning only
@@ -48,11 +45,3 @@ TRAIN:
   resume:  # path to latest checkpoint (default: none)
   eval_freq: 1
   eval_start: 0.9
-  mean_range: 50
-Distributed: 
-  dist_url: tcp://localhost:8888
-  dist_backend: 'nccl'
-  multiprocessing_distributed: False
-  world_size: 1
-  rank: 0
-

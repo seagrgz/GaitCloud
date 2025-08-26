@@ -10,9 +10,9 @@ from ctypes import ArgumentError
 import numpy as np
 
 class LidarGait(nn.Module):
-    def __init__(self, args, in_size):
+    def __init__(self, args):
         super().__init__()
-        backbone = ResNet9(in_size=in_size)
+        backbone = ResNet9(in_size=args.feature)
         self.encoder = SetBlockWrapper(backbone)
         self.FCs = SeparateFCs()
         self.BNNecks = SeparateBNNecks(class_num=len(args.target))
@@ -20,12 +20,16 @@ class LidarGait(nn.Module):
         self.TP = PackSequenceWrapper(torch.max, args.frame_size)
         self.mergeloss = LossAggregator()
 
-    def forward(self, x, label=None, training=True, **kwargs):
+    def forward(self, x, labels=None, training=False, **kwargs):
         #ResNet9
-        x = torch.transpose(x, 1, 2)
-        #print('input size', x.shape)
-        outs = self.encoder(x) #(n, c, s, h, w)
-        #print('encoder out: ', out.shape)
+        if len(x.shape) == 5:
+            x = torch.transpose(x, 1, 2) #SUSTeqch1K with shape [n, t, c, h, w]
+        elif len(x.shape) == 4:
+            x = x.unsqueeze(1)
+        #x = torch.permute(x, (0,4,1,2,3)).contiguous() #FreeGait with shape [n, t, h, w, c]
+        #print(x.shape)
+        outs = self.encoder(x) #(n, c, t, h, w)
+        #print('encoder out: ', outs.shape)
         
         #Temporal pooling
         #print('TP input size', outs.shape)
@@ -47,7 +51,7 @@ class LidarGait(nn.Module):
             
             #print('embedding ce size', embed_ce.shape)
             #loss aggregation
-            losses, mined_triplets = self.mergeloss(embed_tp, embed_ce, label)
+            losses, mined_triplets = self.mergeloss(embed_tp, embed_ce, labels)
             output = tuple([losses, mined_triplets, embed_tp])
         else:
             output = embed_tp
@@ -69,7 +73,7 @@ class ResNet9(ResNet):
         self.inplanes = channels[0]
         self.bn1 = nn.BatchNorm2d(self.inplanes)
 
-        self.conv1 = BasicConv2d(in_channels, self.inplanes, 3, 2, 1)
+        self.conv1 = BasicConv2d(in_channels, self.inplanes, 3, 1, 1)
 
         self.layer1 = self._make_layer(block, channels[0], layers[0], stride=strides[0], dilate=False)
 
@@ -109,7 +113,7 @@ class HorizontalPyramidPooling():
 
     def __call__(self, x):
         """
-            x  : [n, c, h, w, l]
+            x  : [n, c, h, w]
             ret: [n, c, p] 
         """
         n, c = x.size()[:2]
@@ -131,8 +135,8 @@ class PackSequenceWrapper(nn.Module):
             In  seqs: [n, c, s, ...]
             Out rets: [n, ...]
         """
-        start = [0]
-        seqL = self.seqL
+        seqL = [seqs.shape[2]]
+        start = [0] + np.cumsum(seqL).tolist()[:-1]
         rets = []
         for curr_start, curr_seqL in zip(start, seqL):
             narrowed_seq = seqs.narrow(dim, curr_start, curr_seqL)
@@ -260,7 +264,7 @@ class LossAggregator(nn.Module):
         mined_triplets = sum(TP_loss_info['loss_num'])
 
         loss_sum = TP_loss.mean()*self.TP_weight + CE_loss.mean()*self.CE_weight
-        return [loss_sum,TP_loss.mean(),CE_loss.mean()], mined_triplets
+        return [loss_sum,TP_loss.mean(),CE_loss.mean(),torch.tensor(0)], mined_triplets
 
 def ddp_all_gather(features, dim=0, requires_grad=True):
     '''
@@ -413,20 +417,21 @@ class TripletLoss(BaseLoss):
             x: [p, n_x, c]
             y: [p, n_y, c]
         """
+        eps = 1e-9
         x2 = torch.sum(x ** 2, -1).unsqueeze(2)  # [p, n_x, 1]
         y2 = torch.sum(y ** 2, -1).unsqueeze(1)  # [p, 1, n_y]
         inner = x.matmul(y.transpose(1, 2))  # [p, n_x, n_y]
         dist = x2 + y2 - 2 * inner
-        dist = torch.sqrt(F.relu(dist))  # [p, n_x, n_y]
+        dist = torch.sqrt(F.relu(dist)+eps)  # [p, n_x, n_y]
         return dist
 
-    def Convert2Triplets(self, row_labels, clo_label, dist):
+    def Convert2Triplets(self, row_labels, clo_labels, dist):
         """
             row_labels: tensor with size [n_r]
-            clo_label : tensor with size [n_c]
+            clo_labels : tensor with size [n_c]
         """
         matches = (row_labels.unsqueeze(1) ==
-                   clo_label.unsqueeze(0)).bool()  # [n_r, n_c]
+                   clo_labels.unsqueeze(0)).bool()  # [n_r, n_c]
         diffenc = torch.logical_not(matches)  # [n_r, n_c]
         p, n, _ = dist.size()
         ap_dist = dist[:, matches].view(p, n, -1, 1)

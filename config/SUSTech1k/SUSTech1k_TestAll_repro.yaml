@@ -1,7 +1,5 @@
 DATA:
-  #data_name: gait_database
   data_name: SUSTech1K
-  #data_root: dataset/gait_database/dataset{}/{}
   data_root: dataset/SUSTech1K/SUSTech1K-Released-voxel.20/tmp #voxelized data
   #data_root: /home/sx-zhang/SUSTech1K/SUSTech1K-Released-baseline #lidargait
   data_split: SUS #dir1~4, combined, SUS
@@ -11,17 +9,15 @@ DATA:
   splits: ['train', '_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far', '00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
   splits_variance: ['00-nm', '01-nm', 'bg', 'cl', 'cr', 'ub', 'uf', 'oc', 'nt']
   splits_view: ['_000_', '_045_', '_090_', '_135_', '_180_', '_225_', '_270_', '_315_', '000-far', '090-near', '180-far', '270-far']
-  target: #[0,1,2,3,4,5]
-  lines: 16 #[6,7,10] #number or list of lines
+  target: 
+  lines: 
   structure: TestAll #model name in model/CNN
-  test_split: test #test, feature, line, temporal, retemporal
   datatype: half #double, float, half
   
   reload_data: True
   identifier: A_
   use_gpu: True
   use_metric: True
-  #use_variation: True
   use_Aloss: True #set to False to use metric learning only
   free_memory_required: 1024
   load_checkpoint: False #set to False to start a new trial
@@ -29,17 +25,17 @@ DATA:
 
   visual: False
   visual_freq: 20
-  visual_names: ['01-nm_090_0223', '01-bg_090_0013', '01-cl_090_0400', '00-nm_090_0400', '01-cr_090_0110', '01-ub_090_0333']
+  visual_test_names: ['01-nm_090_0223', '01-bg_090_0013', '01-cl_090_0400', '00-nm_090_0400', '01-cr_090_0110', '01-ub_090_0333', '00-nm_090_0400']
+  visual_train_names: ['01-ub_090_0301', '00-nm_090_0301']
 
 TRAIN:
-  arch: CNN_LSTM_cls_repro
   ignore_label: None
   train_gpu: [0]
-  workers: 16  # data loader workers
-  batch_size: 16 # batch size for training
+  workers: 8  # data loader workers
+  batch_size: 8 # batch size for training
   batch_size_test: 64
   base_lr: 0.1
-  epochs: 200
+  epochs: 100
   start_epoch: 0
   step_epoch: 30
   momentum: 0.9

@@ -1,6 +1,7 @@
 import torch
 import time
 import warnings
+import math
 import torch.nn as nn
 import torch.nn.functional as F
 from models.my_resnet import BasicBlock, ResNet
@@ -12,7 +13,7 @@ import numpy as np
 from util.ssim import ssim
 
 class ResBlock(nn.Module):
-    def __init__(self, channels, win_size=3, stride=2, downsample=None, sample_dim=3):
+    def __init__(self, channels, win_size=3, stride=1, downsample=None, sample_dim=3):
         self.stride, self.channels = stride, channels
         super().__init__()
         if sample_dim == 2:
@@ -55,32 +56,42 @@ class ResBlock(nn.Module):
         out = self.relu(out)
         return out
 
-class FlatIn(nn.Module):
-    def __init__(self, channels):
-        in_channels = 1
+class ResMLP(nn.Module):
+    def __init__(self, channels, win_size=1):
         super().__init__()
-        self.conv_in = nn.Conv3d(in_channels, channels, 3, stride=1, padding=1, bias=False)
-        self.bn_in = nn.BatchNorm3d(channels)
+        self.act = nn.ReLU(inplace=True)
+        self.net1 = nn.Sequential(
+            nn.Conv1d(in_channels=channels[0], out_channels=channels[1], kernel_size=win_size),
+            nn.BatchNorm1d(channels[1]),
+            self.act)
+        self.net2 = nn.Sequential(
+            nn.Conv1d(in_channels=channels[1], out_channels=channels[1], kernel_size=win_size),
+            nn.BatchNorm1d(channels[1]))
+
+    def forward(self, x):
+        return self.act(self.net2(self.net1(x)) + x)
+
+class FlatIn(nn.Module):
+    def __init__(self, in_channel, out_channel):
+        super().__init__()
+        self.conv_in = nn.Conv3d(in_channel, out_channel, 3, stride=1, padding=1, bias=False)
+        self.bn_in = nn.BatchNorm3d(out_channel)
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         '''
-        x   : [n, h, w, l]
+        x   : [n, c, h, w, l]
         out : [n, c, h, w, l]
         '''
-        x = self.conv_in(x.unsqueeze(1))
+        x = self.conv_in(x)
         x = self.bn_in(x)
         out = self.relu(x)
         return out
 
 class LayerCNN(nn.Module):
-    def __init__(self, channels=[16,32], resblock=False):
-        in_channel = 1
+    def __init__(self, in_channel=1, channels=[16,32], resblock=False):
         self.resblock = resblock
         super().__init__()
-        #self.conv_in = nn.Conv3d(in_channel, 64, (1,3,3), stride=(1,2,2), padding=(0,1,1), bias=False)
-        #self.pool = nn.MaxPool3d((2,1,1), stride=(2,1,1))
-        #self.bn_in = nn.BatchNorm3d(64)
 
         self.conv_in = nn.Conv3d(in_channel, channels[0], (1,3,3), stride=1, padding=(0,1,1), bias=False)
         self.bn_in = nn.BatchNorm3d(channels[0])
@@ -97,46 +108,67 @@ class LayerCNN(nn.Module):
             else:
                 self.shortcut = nn.Identity()
 
-        #self.conv_in = nn.Conv2d(in_channel, channels[0], 3, stride=1, padding=1, bias=False)
-        #self.bn_in = nn.BatchNorm2d(channels[0])
-        #self.conv1 = nn.Conv2d(channels[0], channels[1], 3, stride=1, padding=1)
-        #self.bn1 = nn.BatchNorm2d(channels[1])
-        #self.conv2 = nn.Conv2d(channels[1], channels[1], 3, stride=1, padding=1)
-        #self.bn2 = nn.BatchNorm2d(channels[1])
-        #if resblock:
-        #    if channels[0]!=channels[1]:
-        #        self.shortcut = nn.Sequential(
-        #                nn.Conv2d(channels[0], channels[1], 1),
-        #                nn.BatchNorm2d(channels[1]))
-        #    else:
-        #        self.shortcut = nn.Identity()
-
     def forward(self, x):
         '''
-        x   : [n, h, w, l]
+        x   : [n, c, h, w, l]
         out : [n, c, h, w, l]
         '''
-        #n, h, w, l = x.shape
-        #x = self.conv_in(x.view(n*h, w, l).unsqueeze(1))
-        x = self.conv_in(x.unsqueeze(1))
+        x = self.conv_in(x)
         x = self.bn_in(x)
         x = self.relu(x)
-        #out = self.pool(x)
 
         if self.resblock:
             identity = self.shortcut(x)
         out = self.conv1(x)
         out = self.bn1(out)
         out = self.relu(out)
-        #out = self.meanpool(out)
 
         out = self.conv2(out)
         out = self.bn2(out)
         if self.resblock:
             out += identity
         out = self.relu(out)
-        #_, c, w, l = out.shape
-        #return torch.transpose(out.view(n, h, c, w, l), 1, 2)
+        return out
+
+class LE_2D(nn.Module):
+    def __init__(self, in_channel=1, channels=[16,32], resblock=False):
+        self.resblock = resblock
+        super().__init__()
+        self.conv_in = nn.Conv2d(in_channel, channels[0], (1,3), stride=1, padding=(0,1), bias=False)
+        self.bn_in = nn.BatchNorm2d(channels[0])
+        self.conv1 = nn.Conv2d(channels[0], channels[1], (1,3), stride=1, padding=(0,1))
+        self.bn1 = nn.BatchNorm2d(channels[1])
+        self.relu = nn.ReLU(inplace=True)
+        self.conv2 = nn.Conv2d(channels[1], channels[1], (1,3), stride=1, padding=(0,1))
+        self.bn2 = nn.BatchNorm2d(channels[1])
+        if resblock:
+            if channels[0]!=channels[1]:
+                self.shortcut = nn.Sequential(
+                        nn.Conv2d(channels[0], channels[1], 1, stride=1),
+                        nn.BatchNorm2d(channels[1]))
+            else:
+                self.shortcut = nn.Identity()
+
+    def forward(self, x):
+        '''
+        x   : [n, c, h, w, l]
+        out : [n, c, h, w, l]
+        '''
+        x = self.conv_in(x)
+        x = self.bn_in(x)
+        x = self.relu(x)
+
+        if self.resblock:
+            identity = self.shortcut(x)
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        out = self.conv2(out)
+        out = self.bn2(out)
+        if self.resblock:
+            out += identity
+        out = self.relu(out)
         return out
 
 class Unet(nn.Module):
@@ -437,7 +469,7 @@ class HPP():
         n, c = x.size()[:2]
         features = []
         for b in self.bin_num:
-            z = x.view(n, c, b, -1)
+            z = x.reshape(n, c, b, -1)
             z = z.mean(-1) + z.max(-1)[0]
             features.append(z)
         return torch.cat(features, -1)
@@ -464,18 +496,52 @@ class SPP():
             features.append(z)
         return torch.cat(features, -1)
 
+#class ConvHPP(nn.Module):
+#    def __init__(self, bin_num, channel, win_size):
+#        self.bin_num = bin_num
+#        super(ConvHPP, self).__init__()
+#        self.conv_mask = nn.ModuleDict({})
+#        for b in bin_num:
+#            self.conv_mask['bin{}'.format(b)] = nn.Sequential(
+#                    nn.Conv3d(channel, channel, kernel_size=win_size, stride=(win_size[0], 1, 1), bias=False),
+#                    #nn.Conv3d(1, 1, kernel_size=win_size, stride=(win_size[0], 1, 1), bias=False),
+#                    nn.BatchNorm3d(channel),
+#                    nn.ReLU())
+#
+#    def __call__(self, x):
+#        """
+#            x  : [n, c, h, w, l]
+#            ret: [n, c, p] 
+#        """
+#        n, c = x.size()[:2]
+#        features = []
+#        for b in self.bin_num:
+#            #z = self.conv_mask['bin{}'.format(b)](x.view(n*c,1,*x.size()[2:]))
+#            z = self.conv_mask['bin{}'.format(b)](x)
+#            z = z.squeeze().view(n,c,b) + torch.max(x.view(n,c,b,-1), -1)[0]
+#            features.append(z)
+#        return torch.cat(features, -1)
+
 class ConvHPP(nn.Module):
-    def __init__(self, bin_num=[16], channel=512, window_size=[1,10,10]):
-        feat_h = 16
+    def __init__(self, bin_num, channel, win_size):
         self.bin_num = bin_num
         super(ConvHPP, self).__init__()
         self.conv_mask = nn.ModuleDict({})
+        if len(win_size) == 3:
+            conv = nn.Conv3d
+            norm = nn.BatchNorm3d
+            stride = (win_size[0], 1, 1)
+        elif len(win_size) == 2:
+            conv = nn.Conv2d
+            norm = nn.BatchNorm2d
+            stride = (win_size[0], 1)
+        else:
+            raise NotImplementedError('Window size should be a 2/3-dimension tuple or list!')
+
         for b in bin_num:
-            window_size[0] = int(feat_h/b)
             self.conv_mask['bin{}'.format(b)] = nn.Sequential(
-                    nn.Conv3d(channel, channel, kernel_size=window_size, stride=(window_size[0], 1, 1), bias=False),
-                    #nn.Conv3d(1, 1, kernel_size=window_size, stride=(window_size[0], 1, 1), bias=False),
-                    nn.BatchNorm3d(channel),
+                    conv(channel, channel, kernel_size=win_size, stride=stride, bias=False),
+                    norm(channel),
                     nn.ReLU())
 
     def __call__(self, x):
@@ -486,7 +552,6 @@ class ConvHPP(nn.Module):
         n, c = x.size()[:2]
         features = []
         for b in self.bin_num:
-            #z = self.conv_mask['bin{}'.format(b)](x.view(n*c,1,*x.size()[2:]))
             z = self.conv_mask['bin{}'.format(b)](x)
             z = z.squeeze().view(n,c,b) + torch.max(x.view(n,c,b,-1), -1)[0]
             features.append(z)
@@ -616,6 +681,45 @@ class SymbolAttention(nn.Module):
                 dim=1)
         return attention_out.permute(0, 3, 1, 2).contiguous().view(n, c, h, w, l)
 
+class TemporalAttention(nn.Module):
+    def __init__(self, in_channel=None, out_channel=None, dk=None):
+        super().__init__()
+        self.in_ch, self.out_ch, self.dk = in_channel, out_channel, dk
+        if not ((self.in_ch is None) and (self.out_ch is None) and (self.dk is None)):
+            self.trans = True
+            assert self.in_ch is not None
+            assert self.out_ch is not None
+            assert self.dk is not None
+            self.qkin_conv = nn.Conv1d(self.in_ch, self.dk, 1)
+            self.out_conv = nn.Conv1d(self.dk, self.out_ch, 1)
+        else:
+            self.trans = False
+
+    def forward(self, q, kv):
+        '''
+        q:  [D_fix, c, L_q]
+        kv:  [D_fix, c, L_kv]
+        out:[D_fix, c, L_k]
+        '''
+        L_q, L_kv = q.shape[2], kv.shape[2]
+        if self.trans:
+            kv, q = torch.split(self.qkin_conv(torch.cat([kv,q], dim=2)), [L_kv,L_q], dim=2)
+            k, v = kv, kv
+        else:
+            q, k, v = q, kv, kv
+            self.dk = q.shape[1]
+
+        logits = torch.matmul(q.transpose(1,2), k) #[D_fix, L_q, L_kv]
+        weights = F.softmax(logits/math.sqrt(self.dk), dim=-1)
+        out = torch.matmul(weights, v.transpose(1,2)) #[D_fix, L_q, dk]
+
+        if self.trans:
+            out = self.out_conv(out.transpose(1,2)) #[D_fix, out_ch, L_k]
+        else:
+            out = out.transpose(1,2)
+
+        return out, weights
+
 def PCA_image(embed, n_components=3):
     """
         embed:  [c, ...]
@@ -625,7 +729,7 @@ def PCA_image(embed, n_components=3):
         embed = torch.from_numpy(embed)
     shape = embed.shape[1:]
     c = embed.shape[0]
-    embed = embed.view(c, -1).transpose(0, 1) #[feat, c]
+    embed = embed.reshape(c, -1).transpose(0, 1) #[feat, c]
     pca = PCA(n_components=n_components)
     features = pca.fit_transform(embed) #[feat, 3]
     im_out = minmax_scale(features, (0,225), axis=1)

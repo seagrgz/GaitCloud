@@ -5,7 +5,7 @@ import numpy as np
 
 
 class CollateFn(object):
-    def __init__(self, frame_num, sample_type='fixed_ordered'):
+    def __init__(self, frame_num, sample_type='fixed_unordered'):
         sample_type = sample_type
         sample_type = sample_type.split('_')
         self.sampler = sample_type[0]
@@ -42,7 +42,7 @@ class CollateFn(object):
             seq_len = len(seqs)
             indices = list(range(seq_len))
 
-            if self.sampler in ['fixed', 'unfixed']:
+            if self.sampler in ['fixed', 'unfixed'] and seq_len > 0:
                 if self.sampler == 'fixed':
                     frames_num = self.frames_num_fixed
                 else:
@@ -70,7 +70,9 @@ class CollateFn(object):
 
                 for i in indices:
                     sampled_fras.append(seqs[i])
-            return sampled_fras
+                return sampled_fras
+            else:
+                return None
 
         # f: feature_num
         # b: batch_size
@@ -83,7 +85,10 @@ class CollateFn(object):
         else:
             raise ValueError('Number of input frames must be fixed!')
 
-        batch = [np.stack(fras_batch), labs_batch, info_batch]
+        try:
+            batch = [np.stack(fras_batch), labs_batch, info_batch]
+        except:
+            raise ValueError([x.shape for x in fras_batch], info_batch[1])
         batch[0] = torch.from_numpy(batch[0])
         batch[1] = torch.tensor(batch[1])
         batch[2][0] = torch.tensor(batch[2][0])

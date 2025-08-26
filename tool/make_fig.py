@@ -248,6 +248,59 @@ def data_vol():
     plt.savefig('test_out.png')
     plt.close()
 
+def comp_tradeoff():
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Example data
+    methods = ["GaitBase", "LidarGait", "GaitCloud", "GaitCloud+", "Naive3D"]
+    groups = ["Accuracy", "MACs(G)", "Time(ms)"]
+    accu_texts = [73, 87, 93, 94, 95]
+    accu_values = [73.25, 87, 92.525, 93.515, 95]
+    mac_texts = [44, 44, 58, 87, 1061]
+    mac_values = [44.06, 44.16, 58.19, 86.97, 1060.55]
+    time_texts = [1.4, 1.4, 2.5, 3.4, 24.8]
+    time_values = [1.39, 1.38, 2.46, 3.42, 24.79]
+
+    # X positions for each method
+    x = np.arange(len(groups))  
+    width = 0.15  # width of each bar
+    bars = []
+    values = []
+    texts = []
+    plt.rcParams.update({
+        'font.size': 14,        # default text size
+        'xtick.labelsize': 14,  # x tick labels
+        'ytick.labelsize': 14,  # y tick labels
+        'legend.fontsize': 16,  # legend
+        })
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    # Plot grouped bars
+    for i in range(len(methods)):
+        values.append([accu_values[i],mac_values[i]*0.1,time_values[i]*4])
+        texts.append([accu_texts[i],mac_texts[i],time_texts[i]])
+        bars.append(ax.bar(x+(i-2)*width, values[-1], width, label=methods[i]))
+
+    # Labels & ticks
+    #ax.set_xlabel("Methods")
+    #ax.set_ylabel("Values")
+    #ax.set_title("Comparison of Accuracy, MACs, and Forward Time")
+    ax.set_xticks(x)
+    ax.set_xticklabels(groups, rotation=0)
+    plt.legend(bbox_to_anchor=(0.9,0.75), loc='upper right')
+
+    # Optional: Add values on top of bars
+    for i, bargroup in enumerate(bars):
+        for j, bar in enumerate(bargroup):
+            height = bar.get_height()
+            ax.annotate(texts[i][j],
+                xy=(bar.get_x() + bar.get_width()/2, height),
+                xytext=(0, 2),  # 3 pts above bar
+                textcoords="offset points", ha='center', va='bottom')
+    plt.tight_layout()
+    plt.show()
+
 
 if __name__ == '__main__':
     lab_f = 16
@@ -256,4 +309,5 @@ if __name__ == '__main__':
     #resolution()
     #noise()
     #data_vol()
-    framenum()
+    #framenum()
+    comp_tradeoff()
