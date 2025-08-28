@@ -1,4 +1,4 @@
-### This is the repository for WACV2025 paper GaitCloud: [Leveraging Spatial-Temporal Information for LiDAR-Base Gait Recognition with A True-3D Gait Representation](https://openaccess.thecvf.com/content/WACV2025/papers/Zhang_GaitCloud_Leveraging_Spatial-Temporal_Information_for_LiDAR-Base_Gait_Recognition_with_A_WACV_2025_paper.pdf).
+### This is the repository for WACV2025 paper [GaitCloud: Leveraging Spatial-Temporal Information for LiDAR-Base Gait Recognition with A True-3D Gait Representation](https://openaccess.thecvf.com/content/WACV2025/papers/Zhang_GaitCloud_Leveraging_Spatial-Temporal_Information_for_LiDAR-Base_Gait_Recognition_with_A_WACV_2025_paper.pdf).
 
 # Requirements:
     python 3.9.19  
